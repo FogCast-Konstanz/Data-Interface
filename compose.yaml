@@ -1,0 +1,8 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:5000"
+    environment:
+      - INFLUXDB_URL=***REMOVED***
+      - INFLUXDB_TOKEN=***REMOVED***

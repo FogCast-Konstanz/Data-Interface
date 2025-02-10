@@ -1,4 +1,6 @@
 import os
+import sys
+from datetime import datetime
 
 from flask import Flask, jsonify, request
 import influxdb_client
@@ -7,11 +9,11 @@ app = Flask(__name__)
 
 INFLUXDB_BUCKET = "WeatherForecast"
 INFLUXDB_ORG = "FogCast"
-INFLUXDB_TOKEN = os.getenv("INFLUX_TOKEN")
-url="***REMOVED***"
+INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
+INFLUXDB_URL = os.getenv("INFLUXDB_URL")
 
 client = influxdb_client.InfluxDBClient(
-    url=url,
+    url= INFLUXDB_URL,
     token=INFLUXDB_TOKEN,
     org=INFLUXDB_ORG
 )
@@ -56,16 +58,18 @@ def forecasts():
     if not forecast_date or not model_id:
         return jsonify({"error": "forecast_date and model_id are required parameters"}), 400
 
+    forecast_date = datetime.strptime(forecast_date, '%Y-%m-%d %H:%M:%S')
     try:
         query = f'''
+        import "date"
         from(bucket: "{INFLUXDB_BUCKET}")
-        |> range(start: -7d)
+        |> range(start: date.sub(from:{forecast_date.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:8d), stop: {forecast_date.strftime('%Y-%m-%dT%H:%M:%SZ')})
         |> filter(fn: (r) => r["_measurement"] == "forecast")
-        |> filter(fn: (r) => r["forecast_date"] == "{forecast_date}")
+        |> filter(fn: (r) => r["forecast_date"] == "{forecast_date.strftime('%Y-%m-%d %H:%M:%S+00:00')}")
         |> filter(fn: (r) => r["model"] == "{model_id}")
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
-
+        
         query_api = client.query_api()
         tables = query_api.query(query=query, org=INFLUXDB_ORG)
 
@@ -80,7 +84,6 @@ def forecasts():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
+    
 if __name__ == '__main__':
     app.run(debug=True)
