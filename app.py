@@ -21,8 +21,6 @@ client = influxdb_client.InfluxDBClient(
 influx_api = client.query_api()
 app = Flask(__name__)
 
-
-
 def query_tag_values(tag_key: str):
     query = f'''
         import "influxdata/influxdb/schema"
@@ -39,11 +37,6 @@ def query_tag_values(tag_key: str):
             tag_keys.append(record.values["_value"])
     return tag_keys
 
-@app.route("/forecast-hours")
-def forecast_hours():
-    tag_values = query_tag_values("forecast_date")
-    return jsonify(tag_values)
-
 @app.route("/models")
 def models():
     tag_values = query_tag_values("model")
@@ -52,20 +45,24 @@ def models():
 
 @app.route('/forecasts', methods=['GET'])
 def forecasts():
-    forecast_date = request.args.get('hour')
+    forecast_datetime = request.args.get('datetime')
     model_id = request.args.get('model_id')
 
-    if not forecast_date or not model_id:
-        return jsonify({"error": "forecast_date and model_id are required parameters"}), 400
+    if not forecast_datetime or not model_id:
+        return jsonify({"error": "datetime and model_id are required parameters"}), 400
 
-    forecast_date = datetime.strptime(forecast_date, '%Y-%m-%d %H:%M:%S')
+    try:
+        forecast_datetime = datetime.strptime(forecast_datetime, '%Y-%m-%dT%H:%M:%SZ')
+    except ValueError:
+        return jsonify({"error": "datetime must be in the format YYYY-MM-DDTHH:MM:SSZ"}), 400
+
     try:
         query = f'''
         import "date"
         from(bucket: "{INFLUXDB_BUCKET}")
-        |> range(start: date.sub(from:{forecast_date.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:8d), stop: {forecast_date.strftime('%Y-%m-%dT%H:%M:%SZ')})
+        |> range(start: date.sub(from:{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:8d), stop: {forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')})
         |> filter(fn: (r) => r["_measurement"] == "forecast")
-        |> filter(fn: (r) => r["forecast_date"] == "{forecast_date.strftime('%Y-%m-%d %H:%M:%S+00:00')}")
+        |> filter(fn: (r) => r["forecast_date"] == "{forecast_datetime.strftime('%Y-%m-%d %H:%M:%S+00:00')}")
         |> filter(fn: (r) => r["model"] == "{model_id}")
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
