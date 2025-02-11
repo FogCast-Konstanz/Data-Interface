@@ -82,5 +82,9 @@ def forecasts():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+@app.route('/flask-health-check')
+def flask_health_check():
+	return "success"
+
 if __name__ == '__main__':
     app.run(debug=True)
