@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime
+import pytz
 
 from flask import Flask, jsonify, request
 import influxdb_client
@@ -53,6 +54,8 @@ def forecasts():
 
     try:
         forecast_datetime = datetime.strptime(forecast_datetime, '%Y-%m-%dT%H:%M:%SZ')
+        forecast_datetime = forecast_datetime.replace(tzinfo=pytz.utc)
+
     except ValueError:
         return jsonify({"error": "datetime must be in the format YYYY-MM-DDTHH:MM:SSZ"}), 400
 
@@ -60,11 +63,12 @@ def forecasts():
         query = f'''
         import "date"
         from(bucket: "{INFLUXDB_BUCKET}")
-        |> range(start: date.sub(from:{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:8d), stop: {forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')})
+        |> range(start: date.sub(from:{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:14d), stop: {forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')})
         |> filter(fn: (r) => r["_measurement"] == "forecast")
         |> filter(fn: (r) => r["forecast_date"] == "{forecast_datetime.strftime('%Y-%m-%d %H:%M:%S+00:00')}")
         |> filter(fn: (r) => r["model"] == "{model_id}")
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+        |> sort(columns: ["_time"])
         '''
         
         query_api = client.query_api()
