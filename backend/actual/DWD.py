@@ -105,11 +105,12 @@ class DWD:
                 Only daily and hourly frequencies are implemented for temperature requests.
         """
         if frequency == self.Frequency.daily:
+
             request = self.__create_dwd_historical_observation_request(parameters=self.Params.temperature,
                                                                        dataset=self.Dataset.climate_summary,
                                                                        frequency=self.Frequency.daily,
                                                                        start_date=utc_start, end_date=utc_end)
-            return df_to_generic_response_object(request.values.all().df.to_pandas())
+            return df_to_generic_response_object(request.values.all().df.to_pandas(), "temperature_air")
         elif frequency == self.Frequency.hourly or frequency == self.Frequency.ten_minutes:
             request = self.__create_dwd_historical_observation_request(parameters=self.Params.temperature,
                                                                        dataset=self.Dataset.temperature_air,
@@ -145,10 +146,7 @@ class DWD:
             request = self.__create_dwd_historical_observation_request(self.Params.fog_count,
                                                                        self.Dataset.weather_phenomena, frequency,
                                                                        utc_start, utc_end)
-            app.logger.error(request.values.all().df.to_pandas().head())
-            data = df_to_generic_response_object(request.values.all().df.to_pandas(), "days_with_fog")
-            app.logger.error(data)
-            return data
+            return df_to_generic_response_object(request.values.all().df.to_pandas(), "days_with_fog")
         else:
             raise NotImplementedError("Only monthly and yearly requests are supported for fog_count yet.")
 
@@ -167,10 +165,11 @@ class DWD:
         Returns:
             DwdObservationRequest: A request object configured with specified parameters, filtered by station ID.
         """
-        return DwdObservationRequest(parameters=[(frequency.value, dataset.value, parameters.value), ],
+        data = DwdObservationRequest(parameters=[frequency.value, dataset.value, parameters.value],
                                      start_date=start_date.strftime(self.date_str_format),
                                      end_date=end_date.strftime(self.date_str_format),
                                      settings=self.settings, ).filter_by_station_id(station_id=(self.station_id,))
+        return data
 
     def __create_dwd_live_observation_request(self, dataset: Dataset, frequency: Frequency):
         """
