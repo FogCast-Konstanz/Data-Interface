@@ -25,7 +25,9 @@ ENV VIRTUAL_ENV=/home/app/venv
 RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN export BACKEND_APP=app.py
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir --force-reinstall -r requirements.txt
+RUN pip install polars-lts-cpu --force-reinstall
+
 
 # define the port number the container should expose
 EXPOSE 8000
