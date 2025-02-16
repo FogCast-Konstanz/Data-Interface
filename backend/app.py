@@ -69,7 +69,7 @@ def forecasts():
         from(bucket: "{INFLUXDB_BUCKET}")
         |> range(start: date.sub(from:{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:14d), stop: {forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')})
         |> filter(fn: (r) => r["_measurement"] == "forecast")
-        |> filter(fn: (r) => r["forecast_date"] == "{forecast_datetime.strftime('%Y-%m-%d %H:%M:%S+00:00')}")
+        |> filter(fn: (r) => r["forecast_date"] == "{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}")
         |> filter(fn: (r) => r["model"] == "{model_id}")
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         |> sort(columns: ["_time"])
