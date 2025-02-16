@@ -3,10 +3,12 @@ from datetime import datetime
 import pytz
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import influxdb_client
 import pandas as pd
 from actual.DWD import DWD
 app = Flask(__name__)
+CORS(app)
 
 INFLUXDB_BUCKET = "WeatherForecast"
 INFLUXDB_ORG = "FogCast"
