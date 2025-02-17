@@ -157,8 +157,8 @@ def actual_fog_count_history():
     else:
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
 
-@app.route('/flask-health-check')
-def flask_health_check():
+@app.route('/backend-health-check')
+def health_check():
 	return "success"
 
 if __name__ == '__main__':
