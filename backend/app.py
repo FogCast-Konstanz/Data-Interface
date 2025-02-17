@@ -7,6 +7,8 @@ from flask_cors import CORS
 import influxdb_client
 import pandas as pd
 from actual.DWD import DWD
+import requests
+
 app = Flask(__name__)
 CORS(app)
 
@@ -156,6 +158,17 @@ def actual_fog_count_history():
         return jsonify([x.to_json() for x in dwd.get_fog_count(start, stop, frequency)])
     else:
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
+
+@app.route('/dwd-proxy', methods=['GET'])
+def dwd_proxy():
+    if request.headers.get('accept') != 'application/json':
+        return jsonify({"error": "only application/json content type is supported"}), 400
+    params = request.args
+    url = params.get('url')
+    other_params = {k: v for k, v in params.items() if k != 'url'}
+    response = requests.get(url, params=other_params)
+    return response.json()
+
 
 @app.route('/backend-health-check')
 def health_check():

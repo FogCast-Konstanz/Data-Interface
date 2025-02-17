@@ -4,3 +4,4 @@ Flask~=3.1.0
 Flask-Cors~=5.0.0
 gunicorn==23.0.0
 wetterdienst~=0.103
+requests~=2.32.3
