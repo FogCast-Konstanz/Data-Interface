@@ -179,6 +179,15 @@ def actual_fog_count_history():
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
 
 
+@app.route('/actual/water-level-history', methods=['GET'])
+def actual_water_level_history():
+    try:
+        data = pegel_online.get_water_level_measurements(PegelOnline.Period.last_31_days)
+        return jsonify([entry.to_json() for entry in data])
+    except BaseException as e:
+        logging.exception("Error occurred while fetching water level measurements for the last 30 days:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/dwd-proxy', methods=['GET'])
 def dwd_proxy():
     if request.headers.get('accept') != 'application/json':
