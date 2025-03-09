@@ -7,7 +7,9 @@ from flask_cors import CORS
 import influxdb_client
 import pandas as pd
 from actual.DWD import DWD
+from actual.PegelOnline import PegelOnline
 import requests
+import logging
 
 app = Flask(__name__)
 CORS(app)
@@ -26,6 +28,7 @@ client = influxdb_client.InfluxDBClient(
 influx_api = client.query_api()
 
 dwd = DWD()
+pegel_online = PegelOnline()
 app = Flask(__name__)
 
 def query_tag_values(tag_key: str):
@@ -46,8 +49,12 @@ def query_tag_values(tag_key: str):
 
 @app.route("/models")
 def models():
-    tag_values = query_tag_values("model")
-    return jsonify(tag_values)
+    try:
+        tag_values = query_tag_values("model")
+        return jsonify(tag_values)
+    except Exception as e:
+        logging.exception("Error occurred while querying InfluxDB for tag values:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/forecasts', methods=['GET'])
@@ -90,13 +97,19 @@ def forecasts():
         return jsonify(df.to_dict(orient='records'))
 
     except Exception as e:
+        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/actual/live-data', methods=['GET'])
 def actual_live_data():
     try:
-        return jsonify([x.to_json() for x in dwd.get_real_time_data()])
+        dwd_measurements = dwd.get_real_time_data()
+        pegel_online_measurements = pegel_online.get_water_level_measurements(PegelOnline.Period.last_24_hours)
+        pegel_online_measurements = sorted(pegel_online_measurements, key=lambda x: x.date, reverse=True)[0]
+        result = [entry.to_json() for entry in dwd_measurements + [pegel_online_measurements]]
+        return jsonify(result)
     except Exception as e:
+        logging.exception("Error occurred while fetching actual data:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/actual/temperature-history', methods=['GET'])
