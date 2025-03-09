@@ -21,8 +21,6 @@ services:
     build: backend
     restart: always
     container_name: fogcast-api-backend
-    ports:
-      - "8000:8000"
     healthcheck:
       test: [ "CMD-SHELL", "curl --silent --fail http://fogcast-api-backend:8000/backend-health-check || exit 1" ]
       interval: 10s

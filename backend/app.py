@@ -30,8 +30,6 @@ influx_api = client.query_api()
 
 dwd = DWD()
 pegel_online = PegelOnline()
-app = Flask(__name__)
-
 
 def query_tag_values(tag_key: str):
     query = f'''
