@@ -1,15 +1,16 @@
+import logging
 import os
 from datetime import datetime
-import pytz
 
-from flask import Flask, jsonify, request
-from flask_cors import CORS
 import influxdb_client
 import pandas as pd
+import pytz
+import requests
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
-import requests
-import logging
 
 app = Flask(__name__)
 CORS(app)
@@ -20,7 +21,7 @@ INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
 INFLUXDB_URL = os.getenv("INFLUXDB_URL")
 
 client = influxdb_client.InfluxDBClient(
-    url= INFLUXDB_URL,
+    url=INFLUXDB_URL,
     token=INFLUXDB_TOKEN,
     org=INFLUXDB_ORG
 )
@@ -30,6 +31,7 @@ influx_api = client.query_api()
 dwd = DWD()
 pegel_online = PegelOnline()
 app = Flask(__name__)
+
 
 def query_tag_values(tag_key: str):
     query = f'''
@@ -46,6 +48,7 @@ def query_tag_values(tag_key: str):
         for record in table.records:
             tag_keys.append(record.values["_value"])
     return tag_keys
+
 
 @app.route("/models")
 def models():
@@ -83,7 +86,7 @@ def forecasts():
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         |> sort(columns: ["_time"])
         '''
-        
+
         query_api = client.query_api()
         tables = query_api.query(query=query, org=INFLUXDB_ORG)
 
@@ -100,6 +103,7 @@ def forecasts():
         logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/actual/live-data', methods=['GET'])
 def actual_live_data():
     try:
@@ -112,6 +116,7 @@ def actual_live_data():
         logging.exception("Error occurred while fetching actual data:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/actual/temperature-history', methods=['GET'])
 def actual_temperature_history():
     start = request.args.get('start')
@@ -119,13 +124,13 @@ def actual_temperature_history():
     frequency = request.args.get('frequency')
 
     if start and stop and frequency:
-        try :
+        try:
             start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
             start = start.replace(tzinfo=pytz.utc)
         except ValueError:
             return jsonify({"error": "start must be in the format YYYY-MM-DD HH:MM:SS"}), 400
 
-        try :
+        try:
             stop = datetime.strptime(stop, '%Y-%m-%d %H:%M:%S')
             stop = stop.replace(tzinfo=pytz.utc)
         except ValueError:
@@ -143,6 +148,7 @@ def actual_temperature_history():
     else:
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
 
+
 @app.route('/actual/fog-count-history', methods=['GET'])
 def actual_fog_count_history():
     start = request.args.get('start')
@@ -156,7 +162,7 @@ def actual_fog_count_history():
         except ValueError:
             return jsonify({"error": "start must be in the format YYYY-MM-DD HH:MM:SS"}), 400
 
-        try :
+        try:
             stop = datetime.strptime(stop, '%Y-%m-%d %H:%M:%S')
             stop = stop.replace(tzinfo=pytz.utc)
         except ValueError:
@@ -172,6 +178,7 @@ def actual_fog_count_history():
     else:
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
 
+
 @app.route('/dwd-proxy', methods=['GET'])
 def dwd_proxy():
     if request.headers.get('accept') != 'application/json':
@@ -185,7 +192,8 @@ def dwd_proxy():
 
 @app.route('/backend-health-check')
 def health_check():
-	return "success"
+    return "success"
+
 
 if __name__ == '__main__':
     app.run(debug=True)

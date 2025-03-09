@@ -4,8 +4,9 @@ from enum import Enum
 import pandas as pd
 from wetterdienst import Settings, Period
 from wetterdienst.provider.dwd.observation import DwdObservationRequest
-from flask import current_app as app
+
 from .objects.GenericResponseObject import GenericResponseObject
+
 
 def df_to_generic_response_object(df: pd.DataFrame, occurrence_name: str):
     """
@@ -222,7 +223,8 @@ class DWD:
         request = self.__create_dwd_live_observation_request(dataset=self.Dataset.precipitation,
                                                              frequency=self.Frequency.ten_minutes)
         precipitation_data = request.values.all().df.to_pandas()
-        precipitation_indicator = precipitation_data[precipitation_data["parameter"] == "precipitation_index"].nlargest(1, "date")
+        precipitation_indicator = precipitation_data[precipitation_data["parameter"] == "precipitation_index"].nlargest(
+            1, "date")
         precipitation_indicator_value = 0.0 if precipitation_indicator["value"].values[0] == 0.0 else 1.0
         result.append(GenericResponseObject(
             name="precipitation_indicator",

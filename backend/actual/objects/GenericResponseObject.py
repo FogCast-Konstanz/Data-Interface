@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+
 from ..decorators import to_json
+
 
 @dataclass(init=True)
 @to_json.json_serializer
@@ -18,4 +20,3 @@ class GenericResponseObject:
     date: datetime
     value: Decimal
     quality: Decimal
-

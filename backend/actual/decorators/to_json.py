@@ -1,7 +1,7 @@
-from typing import get_args, get_origin
 from datetime import datetime, date
-from uuid import UUID
 from decimal import Decimal
+from typing import get_args, get_origin
+from uuid import UUID
 
 
 def custom_value_serialize(value, output_type):
