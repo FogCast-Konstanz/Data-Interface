@@ -19,4 +19,5 @@ class GenericResponseObject:
     name: str
     date: datetime
     value: Decimal
+    unit: str
     quality: Decimal

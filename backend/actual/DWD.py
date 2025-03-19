@@ -8,7 +8,7 @@ from wetterdienst.provider.dwd.observation import DwdObservationRequest
 from .objects.GenericResponseObject import GenericResponseObject
 
 
-def df_to_generic_response_object(df: pd.DataFrame, occurrence_name: str):
+def df_to_generic_response_object(df: pd.DataFrame, occurrence_name: str, unit: str):
     """
     Converts a pandas DataFrame containing weather-related data into a list of
     GenericResponseObject, where each object represents a row in the DataFrame.
@@ -31,6 +31,7 @@ def df_to_generic_response_object(df: pd.DataFrame, occurrence_name: str):
         name=occurrence_name,
         date=pd.Timestamp(row["date"]).to_pydatetime(),
         value=row["value"],
+        unit=unit,
         quality=row["quality"]
     ) for index, row in df.iterrows()]
 
@@ -81,6 +82,17 @@ class DWD:
         wind = "wind"
         precipitation = "precipitation"
 
+    class Unit(Enum):
+        """
+        Enum class to define the units that can be requested from the DWD API.
+        """
+        no_unit = "-"
+        temperature = "°C"
+        wind_direction ="°"
+        wind_speed = "m/s"
+        humidity = "%"
+        air_pressure = "hPa"
+
     def get_temperature(self, utc_start: datetime, utc_end: datetime, frequency: Frequency) -> list[
         GenericResponseObject]:
         """
@@ -111,13 +123,13 @@ class DWD:
                                                                        dataset=self.Dataset.climate_summary,
                                                                        frequency=self.Frequency.daily,
                                                                        start_date=utc_start, end_date=utc_end)
-            return df_to_generic_response_object(request.values.all().df.to_pandas(), "temperature_air")
+            return df_to_generic_response_object(request.values.all().df.to_pandas(), "temperature_air", self.Unit.temperature.value)
         elif frequency == self.Frequency.hourly or frequency == self.Frequency.ten_minutes:
             request = self.__create_dwd_historical_observation_request(parameters=self.Params.temperature,
                                                                        dataset=self.Dataset.temperature_air,
                                                                        frequency=frequency, start_date=utc_start,
                                                                        end_date=utc_end)
-            return df_to_generic_response_object(request.values.all().df.to_pandas(), "temperature_air")
+            return df_to_generic_response_object(request.values.all().df.to_pandas(), "temperature_air", self.Unit.temperature.value)
         else:
             raise NotImplementedError("Only daily and hourly requests are supported for temperature yet.")
 
@@ -147,7 +159,7 @@ class DWD:
             request = self.__create_dwd_historical_observation_request(self.Params.fog_count,
                                                                        self.Dataset.weather_phenomena, frequency,
                                                                        utc_start, utc_end)
-            return df_to_generic_response_object(request.values.all().df.to_pandas(), "days_with_fog")
+            return df_to_generic_response_object(request.values.all().df.to_pandas(), "days_with_fog", self.Unit.no_unit.value)
         else:
             raise NotImplementedError("Only monthly and yearly requests are supported for fog_count yet.")
 
@@ -210,12 +222,14 @@ class DWD:
             name="wind_direction",
             date=latest_wind_direction["date"].values[0].item(),
             value=latest_wind_direction["value"].values[0],
+            unit=self.Unit.wind_direction.value,
             quality=latest_wind_direction["quality"].values[0],
         ))
         result.append(GenericResponseObject(
             name="wind_speed",
             date=latest_wind_speed["date"].values[0].item(),
             value=latest_wind_speed["value"].values[0],
+            unit=self.Unit.wind_speed.value,
             quality=latest_wind_speed["quality"].values[0],
         ))
 
@@ -230,6 +244,7 @@ class DWD:
             name="precipitation_indicator",
             date=precipitation_indicator["date"].values[0].item(),
             value=precipitation_indicator_value,
+            unit=self.Unit.no_unit.value,
             quality=precipitation_indicator["quality"].values[0],
         ))
 
@@ -244,18 +259,21 @@ class DWD:
             name="humidity",
             date=humidity["date"].values[0].item(),
             value=humidity["value"].values[0],
+            unit=self.Unit.humidity.value,
             quality=humidity["quality"].values[0],
         ))
         result.append(GenericResponseObject(
             name="air_pressure",
             date=air_pressure["date"].values[0].item(),
             value=air_pressure["value"].values[0],
+            unit=self.Unit.air_pressure.value,
             quality=air_pressure["quality"].values[0],
         ))
         result.append(GenericResponseObject(
             name="temperature",
             date=temperature["date"].values[0].item(),
             value=temperature["value"].values[0],
+            unit=self.Unit.temperature.value,
             quality=temperature["quality"].values[0],
         ))
 

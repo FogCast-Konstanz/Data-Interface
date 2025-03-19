@@ -33,6 +33,7 @@ def to_generic_response(data: list[dict]) -> list[GenericResponseObject]:
             name="water_level",
             date=dt_utc,
             value=entry["value"],
+            unit="cm",
             quality=2.0
         ))
     return result
