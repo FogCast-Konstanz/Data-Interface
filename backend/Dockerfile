@@ -15,8 +15,7 @@ RUN chown -R nonroot:nonroot /var/log/backend-app
 WORKDIR /home/app
 USER nonroot
 
-# copy all the files to the container
-COPY --chown=nonroot:nonroot . .
+COPY --chown=nonroot:nonroot requirements.txt requirements.txt
 
 # venv
 ENV VIRTUAL_ENV=/home/app/venv
@@ -28,6 +27,8 @@ RUN export BACKEND_APP=app.py
 RUN pip install --no-cache-dir --force-reinstall -r requirements.txt
 RUN pip install polars-lts-cpu --force-reinstall
 
+# copy all the files to the container
+COPY --chown=nonroot:nonroot . .
 
 # define the port number the container should expose
 EXPOSE 8000

@@ -100,6 +100,45 @@ def forecasts():
     except Exception as e:
         logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": str(e)}), 500
+    
+
+@app.route('/current-forecast', methods=['GET'])
+def current_forecast():
+    model_id = request.args.get('model_id')
+    try:
+        query = f'''
+        import "date"
+        from(bucket: "{INFLUXDB_BUCKET}")
+        |> range(start: -2h)
+        |> filter(fn: (r) => r["_measurement"] == "forecast")
+        |> filter(fn: (r) => r["model"] == "{model_id}")
+        |> last()
+        |> pivot(rowKey:["forecast_date"], columnKey: ["_field"], valueColumn: "_value")
+        |> sort(columns: ["forecast_date"])
+        |> drop(columns: ["_start", "_stop", "_time", "_measurement"])
+        '''
+
+        query_api = client.query_api()
+        tables = query_api.query(query=query, org=INFLUXDB_ORG)
+
+        # Parse query results into a DataFrame
+        data = []
+        for table in tables:
+            for record in table.records:
+                data.append(record.values)
+
+        df = pd.DataFrame(data)
+
+        # Filter rows where forecast_date is greater than or equal to now
+        df["forecast_date"] = pd.to_datetime(df["forecast_date"])
+        utc_now = datetime.now(pytz.utc)
+        df = df[df["forecast_date"] >= utc_now]
+
+        return jsonify(df.to_dict(orient='records'))
+
+    except Exception as e:
+        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/actual/live-data', methods=['GET'])
