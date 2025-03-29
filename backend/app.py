@@ -1,9 +1,6 @@
 import logging
-import os
 from datetime import datetime
 
-import influxdb_client
-import pandas as pd
 import pytz
 import requests
 from flask import Flask, jsonify, request
@@ -11,48 +8,21 @@ from flask_cors import CORS
 
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
+from forecast.influx import get_models, get_forecasts, get_current_forecast
 
 app = Flask(__name__)
 CORS(app)
 
-INFLUXDB_BUCKET = "WeatherForecast"
-INFLUXDB_ORG = "FogCast"
-INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
-INFLUXDB_URL = os.getenv("INFLUXDB_URL")
-
-client = influxdb_client.InfluxDBClient(
-    url=INFLUXDB_URL,
-    token=INFLUXDB_TOKEN,
-    org=INFLUXDB_ORG
-)
-
-influx_api = client.query_api()
 
 dwd = DWD()
 pegel_online = PegelOnline()
-
-def query_tag_values(tag_key: str):
-    query = f'''
-        import "influxdata/influxdb/schema"
-        schema.measurementTagValues(
-            bucket: "WeatherForecast",
-            measurement: "forecast",
-            tag: "{tag_key}",
-        )
-        '''
-    result = influx_api.query(query)
-    tag_keys = []
-    for table in result:
-        for record in table.records:
-            tag_keys.append(record.values["_value"])
-    return tag_keys
 
 
 @app.route("/models")
 def models():
     try:
-        tag_values = query_tag_values("model")
-        return jsonify(tag_values)
+        models = get_models()
+        return jsonify(models)
     except Exception as e:
         logging.exception("Error occurred while querying InfluxDB for tag values:", exc_info=e)
         return jsonify({"error": str(e)}), 500
@@ -74,27 +44,7 @@ def forecasts():
         return jsonify({"error": "datetime must be in the format YYYY-MM-DDTHH:MM:SSZ"}), 400
 
     try:
-        query = f'''
-        import "date"
-        from(bucket: "{INFLUXDB_BUCKET}")
-        |> range(start: date.sub(from:{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:14d), stop: {forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')})
-        |> filter(fn: (r) => r["_measurement"] == "forecast")
-        |> filter(fn: (r) => r["forecast_date"] == "{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}")
-        |> filter(fn: (r) => r["model"] == "{model_id}")
-        |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-        |> sort(columns: ["_time"])
-        '''
-
-        query_api = client.query_api()
-        tables = query_api.query(query=query, org=INFLUXDB_ORG)
-
-        # Parse query results into a DataFrame
-        data = []
-        for table in tables:
-            for record in table.records:
-                data.append(record.values)
-
-        df = pd.DataFrame(data)
+        df = get_forecasts(model_id, forecast_datetime)
         return jsonify(df.to_dict(orient='records'))
 
     except Exception as e:
@@ -106,34 +56,7 @@ def forecasts():
 def current_forecast():
     model_id = request.args.get('model_id')
     try:
-        query = f'''
-        import "date"
-        from(bucket: "{INFLUXDB_BUCKET}")
-        |> range(start: -2h)
-        |> filter(fn: (r) => r["_measurement"] == "forecast")
-        |> filter(fn: (r) => r["model"] == "{model_id}")
-        |> last()
-        |> pivot(rowKey:["forecast_date"], columnKey: ["_field"], valueColumn: "_value")
-        |> sort(columns: ["forecast_date"])
-        |> drop(columns: ["_start", "_stop", "_time", "_measurement"])
-        '''
-
-        query_api = client.query_api()
-        tables = query_api.query(query=query, org=INFLUXDB_ORG)
-
-        # Parse query results into a DataFrame
-        data = []
-        for table in tables:
-            for record in table.records:
-                data.append(record.values)
-
-        df = pd.DataFrame(data)
-
-        # Filter rows where forecast_date is greater than or equal to now
-        df["forecast_date"] = pd.to_datetime(df["forecast_date"])
-        utc_now = datetime.now(pytz.utc)
-        df = df[df["forecast_date"] >= utc_now]
-
+        df = get_current_forecast(model_id)
         return jsonify(df.to_dict(orient='records'))
 
     except Exception as e:
