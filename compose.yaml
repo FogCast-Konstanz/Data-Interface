@@ -27,6 +27,6 @@ services:
       timeout: 10s
       retries: 3
     environment:
-      - INFLUXDB_URL=
-      - INFLUXDB_TOKEN=
+      - INFLUXDB_URL=$INFLUXDB_URL
+      - INFLUXDB_TOKEN=$INFLUXDB_TOKEN
     command: gunicorn -w 3 -t 60 -b 0.0.0.0:8000 app:app
