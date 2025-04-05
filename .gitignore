@@ -340,3 +340,4 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jetbrains+all,visualstudiocode,windows,macos
+/.cache.sqlite
