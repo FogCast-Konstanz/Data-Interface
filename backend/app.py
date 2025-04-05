@@ -8,6 +8,7 @@ from flask_cors import CORS
 
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
+from actual.OpenMeteo import OpenMeteo
 from forecast.influx import get_models, get_forecasts, get_current_forecast
 
 app = Flask(__name__)
@@ -107,6 +108,23 @@ def actual_temperature_history():
         return jsonify([x.to_json() for x in dwd.get_temperature(start, stop, frequency)])
     else:
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
+
+
+@app.route('/actual/archive', methods=['GET'])
+def actual_weather_archive():
+    date = request.args.get('date')
+    model_id = request.args.get('model_id')
+    if date and model_id:
+        try:
+            open_meteo = OpenMeteo()
+            data = open_meteo.get_measurements("icon_seamless", datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
+            return jsonify(data.to_dict(orient='records'))
+        except Exception as e:
+            logging.exception("Error occurred while retrieving data from OpenMeteo archive endpoint:", exc_info=e)
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "date and model_id are required parameters"}), 400
+
 
 
 @app.route('/actual/fog-count-history', methods=['GET'])
