@@ -177,7 +177,7 @@ def dwd_proxy():
     return response.json()
 
 
-@app.route('/backend-health-check')
+@app.route('/health-check')
 def health_check():
     return "success"
 

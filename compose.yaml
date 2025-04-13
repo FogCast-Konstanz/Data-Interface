@@ -1,32 +1,20 @@
 services:
-  nginx-proxy:
-    build: nginx
-    restart: always
-    container_name: fogcast-api-proxy
-    volumes:
-      - ./nginx/default.conf:/tmp/default.conf
-    environment:
-      - BACKEND_SERVER_ADDR=backend-app:8000
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend-app
-    healthcheck:
-      test: [ "CMD-SHELL", "curl --silent --fail http://fogcast-api-proxy:80/health-check || exit 1" ]
-      interval: 10s
-      timeout: 10s
-      retries: 3
-    command: /app/start.sh
   backend-app:
     build: backend
     restart: always
-    container_name: fogcast-api-backend
+    container_name: fogcast-api
     healthcheck:
-      test: [ "CMD-SHELL", "curl --silent --fail http://fogcast-api-backend:8000/backend-health-check || exit 1" ]
+      test: [ "CMD-SHELL", "curl --silent --fail http://fogcast-api:8000/health-check || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 3
     environment:
-      - INFLUXDB_URL=$INFLUXDB_URL
-      - INFLUXDB_TOKEN=$INFLUXDB_TOKEN
+      - INFLUXDB_URL=http://fogcast-influxdb:8086
+      - INFLUXDB_TOKEN=YfT61spkrdsg5LLmsG9Nkx3gbzb0NMRxGqn1ELk4OccnYjJ0R1qG8iFcny3nPCobYHCQd3GHbaMl0pv55hn8vw==
     command: gunicorn -w 3 -t 60 -b 0.0.0.0:8000 app:app
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true
