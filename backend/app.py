@@ -47,6 +47,10 @@ def forecasts():
     try:
         df = get_forecasts(model_id, forecast_datetime)
         return jsonify(df.to_dict(orient='records'))
+    
+    except KeyError as e:
+        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        return jsonify({"error": f"KeyError: {str(e)}"}), 400
 
     except Exception as e:
         logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
@@ -59,6 +63,10 @@ def current_forecast():
     try:
         df = get_current_forecast(model_id)
         return jsonify(df.to_dict(orient='records'))
+    
+    except KeyError as e:
+        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        return jsonify({"error": f"KeyError: {str(e)}"}), 400
 
     except Exception as e:
         logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
