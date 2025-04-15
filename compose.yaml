@@ -8,9 +8,9 @@ services:
       interval: 10s
       timeout: 10s
       retries: 3
-    environment:
-      - INFLUXDB_URL=http://fogcast-influxdb:8086
-      - INFLUXDB_TOKEN=YfT61spkrdsg5LLmsG9Nkx3gbzb0NMRxGqn1ELk4OccnYjJ0R1qG8iFcny3nPCobYHCQd3GHbaMl0pv55hn8vw==
+    env_file:
+      - path: .env
+        required: true
     command: gunicorn -w 3 -t 60 -b 0.0.0.0:8000 app:app
     networks:
       - proxy-net
