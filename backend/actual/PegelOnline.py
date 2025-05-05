@@ -46,6 +46,13 @@ class PegelOnline:
     that provides water level and related hydrological information. The class includes
     methods for fetching and parsing data.
     """
+    
+    class Station(Enum):
+        """
+        Represents Pegel Online stations.
+        """
+        KONSTANZ_RHEIN = "e020e651-e422-46d3-ae28-34887c5a4a8e"
+        KONSTANZ_BODENSEE = "aa9179c1-17ef-4c61-a48a-74193fa7bfdf"
 
     class Period(Enum):
         """
@@ -54,11 +61,7 @@ class PegelOnline:
         last_24_hours = "P1D"
         last_31_days = "P31D"
 
-    def __init__(self, station_uuid="aa9179c1-17ef-4c61-a48a-74193fa7bfdf"):
-        self.base_url = f"https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/{station_uuid}/W/measurements.json?"
-        self.station_uuid = station_uuid
-
-    def get_water_level_measurements(self, period: Period):
+    def get_water_level_measurements(self, period: Period, station: Station):
         """
         Fetches water level measurement data for a specified time period.
 
@@ -67,7 +70,7 @@ class PegelOnline:
 
         Args:
             period (str): The time period for which measurements are to be retrieved.
-                          It should be specified in a format recognized by the system.
+            station_uuid (str): The UUID of the station for which measurements are to be retrieved.
 
         Returns:
             list: A list of measurement records for the specified time period.
@@ -75,7 +78,8 @@ class PegelOnline:
         Raises:
             ValueError: If the provided period format is incorrect or unrecognized.
         """
-        url = self.base_url + f"start={period.value}"
+        base_url = f"https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/{station.value}/W/measurements.json?"
+        url = base_url + f"start={period.value}"
         response = requests.get(url, timeout=30)
         if response.status_code == 200:
             return to_generic_response(response.json())
