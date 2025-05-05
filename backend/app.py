@@ -77,7 +77,8 @@ def current_forecast():
 def actual_live_data():
     try:
         dwd_measurements = dwd.get_real_time_data()
-        pegel_online_measurements = pegel_online.get_water_level_measurements(PegelOnline.Period.last_24_hours)
+        # current default station is Konstanz Rhein
+        pegel_online_measurements = pegel_online.get_water_level_measurements(PegelOnline.Period.last_24_hours, PegelOnline.Station.KONSTANZ_RHEIN)
         pegel_online_measurements = sorted(pegel_online_measurements, key=lambda x: x.date, reverse=True)[0]
         result = [entry.to_json() for entry in dwd_measurements + [pegel_online_measurements]]
         return jsonify(result)
@@ -204,14 +205,25 @@ def actual_fog_count_history():
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
 
 
-@app.route('/actual/water-level-history', methods=['GET'])
-def actual_water_level_history():
-    try:
-        data = pegel_online.get_water_level_measurements(PegelOnline.Period.last_31_days)
-        return jsonify([entry.to_json() for entry in data])
-    except BaseException as e:
-        logging.exception("Error occurred while fetching water level measurements for the last 30 days:", exc_info=e)
-        return jsonify({"error": str(e)}), 500
+@app.route('/actual/water-level', methods=['GET'])
+def actual_water_level():
+    station_id = request.args.get('station_id')
+    if station_id:
+        if not station_id.isdigit():
+            return jsonify({"error": "station_id must be an integer"}), 400
+        station_id = int(station_id)
+        if station_id == 1:
+            station_id = PegelOnline.Station.KONSTANZ_BODENSEE
+        elif station_id == 2:
+            station_id = PegelOnline.Station.KONSTANZ_RHEIN
+        else:
+            return jsonify({"error": "station_id must be either 1 (Konstanz Bodensee) or 2 (Konstanz Rhein)"}), 400
+        try:
+            data = pegel_online.get_water_level_measurements(PegelOnline.Period.last_31_days, station_id)
+            return jsonify([entry.to_json() for entry in data])
+        except BaseException as e:
+            logging.exception("Error occurred while fetching water level measurements for the last 30 days:", exc_info=e)
+            return jsonify({"error": str(e)}), 500
 
 @app.route('/dwd-proxy', methods=['GET'])
 def dwd_proxy():
