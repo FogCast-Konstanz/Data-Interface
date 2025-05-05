@@ -9,7 +9,7 @@ from flask_cors import CORS
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
 from actual.OpenMeteo import OpenMeteo
-from forecast.influx import get_models, get_forecasts, get_current_forecast
+from forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
 
 app = Flask(__name__)
 CORS(app)
@@ -132,6 +132,45 @@ def actual_weather_archive():
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "date and model_id are required parameters"}), 400
+    
+@app.route('/archive/water-level', methods=['GET'])
+def archive_water_level():
+    start = request.args.get('start')
+    stop = request.args.get('stop')
+    station_id = request.args.get('station_id')
+    if start and stop and station_id:
+            
+        try:
+            start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+            start = start.replace(tzinfo=pytz.utc)
+        except ValueError:
+            return jsonify({"error": "start must be in the format YYYY-MM-DD HH:MM:SS"}), 400
+
+        try:
+            stop = datetime.strptime(stop, '%Y-%m-%d %H:%M:%S')
+            stop = stop.replace(tzinfo=pytz.utc)
+        except ValueError:
+            return jsonify({"error": "stop must be in the format YYYY-MM-DD HH:MM:SS"}), 400
+        
+        if not station_id.isdigit():
+            return jsonify({"error": "station_id must be an integer"}), 400
+        station_id = int(station_id)
+        if station_id == 1:
+            station_id = 906
+        elif station_id == 2:
+            station_id = 3329
+        else:
+            return jsonify({"error": "station_id must be either 1 (Konstanz Bodensee) or 2 (Konstanz Rhein)"}), 400
+            
+        try:
+            df = get_archive_water_level(station_id, start, stop)
+            return jsonify(df.to_dict(orient='records'))
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+            
+    else:
+        return jsonify({"error": "start and stop are required parameters"}), 400
+
 
 
 

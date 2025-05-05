@@ -91,3 +91,27 @@ def get_current_forecast(model_id:str):
     utc_now = datetime.now(pytz.utc)
     df = df[df["forecast_date"] >= utc_now]
     return df
+
+
+def get_archive_water_level(station_id:int, start:datetime, stop:datetime):
+    query = f'''
+        from(bucket: "{INFLUXDB_BUCKET}")
+            |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
+            |> filter(fn: (r) => r["_measurement"] == "water_level")
+            |> filter(fn: (r) => r["_field"] == "value")
+            |> filter(fn: (r) => r["station_id"] == "{station_id}")
+            |> drop(columns: ["_measurement", "_field", "table", "_start", "_stop", "station_id"])  
+    '''
+    query_api = client.query_api()
+    tables = query_api.query(query=query, org=INFLUXDB_ORG)
+
+    # Parse query results into a DataFrame
+    data = []
+    for table in tables:
+        for record in table.records:
+            data.append(record.values)
+
+    df = pd.DataFrame(data)
+    df = df.drop(columns=["result", "table"])
+    df = df.rename(columns={"_time": "datetime", "_value": "value"})
+    return df
