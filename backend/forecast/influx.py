@@ -119,5 +119,5 @@ def get_archive_water_level(station_id:int, start:datetime, stop:datetime):
 
     df = pd.DataFrame(data)
     df = df.drop(columns=["result", "table"])
-    df = df.rename(columns={"_time": "datetime", "_value": "value"})
+    df = df.rename(columns={"_time": "date", "_value": "value"})
     return df
