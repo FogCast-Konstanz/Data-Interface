@@ -4,6 +4,8 @@ import influxdb_client
 import pandas as pd
 import pytz
 
+from forecast.fog import add_fog_based_on_weather_code
+
 INFLUXDB_BUCKET = "WeatherForecast"
 INFLUXDB_ORG = "FogCast"
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
@@ -60,6 +62,9 @@ def get_forecasts(model_id:str, forecast_datetime:datetime):
             data.append(record.values)
 
     df = pd.DataFrame(data)
+    df["forecast_date"] = pd.to_datetime(df["forecast_date"])
+    df = add_fog_based_on_weather_code(df)
+
     return df
 
 def get_current_forecast(model_id:str):
@@ -85,9 +90,10 @@ def get_current_forecast(model_id:str):
             data.append(record.values)
 
     df = pd.DataFrame(data)
+    df["forecast_date"] = pd.to_datetime(df["forecast_date"])
+    df = add_fog_based_on_weather_code(df)
 
     # Filter rows where forecast_date is greater than or equal to now
-    df["forecast_date"] = pd.to_datetime(df["forecast_date"])
     utc_now = datetime.now(pytz.utc)
     df = df[df["forecast_date"] >= utc_now]
     return df
