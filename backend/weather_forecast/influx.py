@@ -3,11 +3,11 @@ import pandas as pd
 import pytz
 
 from weather_forecast.fog import add_fog_based_on_weather_code
-from influx_config import client, INFLUXDB_ORG
+from config import influx_client, INFLUXDB_ORG
 
 BUCKET = "WeatherForecast"
 
-influx_api = client.query_api()
+influx_api = influx_client.query_api()
 
 def _query_tag_values(tag_key: str):
     query = f'''
@@ -42,7 +42,7 @@ def get_forecasts(model_id:str, forecast_datetime:datetime):
         |> sort(columns: ["_time"])
     '''
 
-    query_api = client.query_api()
+    query_api = influx_client.query_api()
     tables = query_api.query(query=query, org=INFLUXDB_ORG)
 
     # Parse query results into a DataFrame
@@ -70,7 +70,7 @@ def get_current_forecast(model_id:str):
         |> drop(columns: ["_start", "_stop", "_time", "_measurement"])
     '''
 
-    query_api = client.query_api()
+    query_api = influx_client.query_api()
     tables = query_api.query(query=query, org=INFLUXDB_ORG)
 
     # Parse query results into a DataFrame
@@ -98,7 +98,7 @@ def get_archive_water_level(station_id:int, start:datetime, stop:datetime):
             |> filter(fn: (r) => r["station_id"] == "{station_id}")
             |> drop(columns: ["_measurement", "_field", "table", "_start", "_stop", "station_id"])  
     '''
-    query_api = client.query_api()
+    query_api = influx_client.query_api()
     tables = query_api.query(query=query, org=INFLUXDB_ORG)
 
     # Parse query results into a DataFrame

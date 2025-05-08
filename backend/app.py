@@ -9,6 +9,7 @@ from flask_cors import CORS
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
 from actual.OpenMeteo import OpenMeteo
+from auth import require_api_key
 from weather_forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
 from weather_data.raspi_station import save_station_data_to_influxdb
 
@@ -61,6 +62,10 @@ def forecasts():
 @app.route('/current-forecast', methods=['GET'])
 def current_forecast():
     model_id = request.args.get('model_id')
+
+    if not model_id:
+        return jsonify({"error": "model_id is a required parameter"}), 400
+
     try:
         df = get_current_forecast(model_id)
         return jsonify(df.to_dict(orient='records'))
@@ -238,6 +243,7 @@ def dwd_proxy():
 
 
 @app.route('/weatherstation', methods=['POST'])
+@require_api_key
 def post_station_data():
     data = request.get_json()
     if not data:

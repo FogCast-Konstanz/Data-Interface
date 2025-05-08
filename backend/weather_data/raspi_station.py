@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime
 import influxdb_client
 import influxdb_client.client
 import influxdb_client.client.write_api
-from influx_config import client, INFLUXDB_ORG, INFLUXDB_URL
+from config import influx_client, INFLUXDB_ORG
 
 BUCKET = "WeatherData"
 
@@ -20,7 +20,7 @@ def save_station_data_to_influxdb(data):
     
     # Check types
     if isinstance(data["timestamp"], str):
-        data["timestamp"] = datetime.strptime(data["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
+        data["timestamp"] = datetime.fromisoformat(data["timestamp"])
     else:
         raise ValueError("Timestamp must be a string in the format YYYY-MM-DDTHH:MM:SSZ") 
 
@@ -31,14 +31,14 @@ def save_station_data_to_influxdb(data):
     if not isinstance(data["humidity"], (int, float)):
         raise ValueError("Humidity must be an integer or float")
     
-    write_api = client.write_api(write_options=influxdb_client.client.write_api.SYNCHRONOUS)
+    write_api = influx_client.write_api(write_options=influxdb_client.client.write_api.SYNCHRONOUS)
 
     # Create a point
     point = influxdb_client.Point("weather_station") \
             .field("temperature", float(data["temperature"])) \
             .field("water_temperature", float(data["water_temperature"])) \
             .field("humidity", float(data["humidity"])) \
-            .time(data["timestamp"].isoformat("T")+"Z")
+            .time(data["timestamp"].isoformat())
     
     # Write the point to InfluxDB
     write_api.write(bucket=BUCKET, org=INFLUXDB_ORG, record=point)
