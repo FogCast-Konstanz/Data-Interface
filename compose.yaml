@@ -11,7 +11,6 @@ services:
     env_file:
       - path: .env
         required: true
-    command: gunicorn -w 3 -t 60 -b 0.0.0.0:8000 app:app
     networks:
       - proxy-net
 

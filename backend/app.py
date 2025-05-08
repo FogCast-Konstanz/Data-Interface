@@ -9,7 +9,8 @@ from flask_cors import CORS
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
 from actual.OpenMeteo import OpenMeteo
-from forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
+from weather_forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
+from weather_data.raspi_station import save_station_data_to_influxdb
 
 app = Flask(__name__)
 CORS(app)
@@ -236,10 +237,21 @@ def dwd_proxy():
     return response.json()
 
 
-@app.route('/health-check')
+@app.route('/weatherstation', methods=['POST'])
+def post_station_data():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    try:
+        save_station_data_to_influxdb(data)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"message": "Data received successfully"}), 200
+
+
+@app.route('/health-check', methods=['GET'])
 def health_check():
     return "success"
-
 
 if __name__ == '__main__':
     app.run(debug=True)

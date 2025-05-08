@@ -33,4 +33,4 @@ COPY --chown=nonroot:nonroot . .
 # define the port number the container should expose
 EXPOSE 8000
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "-w" ,"3", "-t", "60", "-b", "0.0.0.0:8000", "app:app"]

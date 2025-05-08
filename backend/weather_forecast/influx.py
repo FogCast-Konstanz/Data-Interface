@@ -1,21 +1,11 @@
 from datetime import datetime
-import os
-import influxdb_client
 import pandas as pd
 import pytz
 
-from forecast.fog import add_fog_based_on_weather_code
+from weather_forecast.fog import add_fog_based_on_weather_code
+from influx_config import client, INFLUXDB_ORG
 
-INFLUXDB_BUCKET = "WeatherForecast"
-INFLUXDB_ORG = "FogCast"
-INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
-INFLUXDB_URL = os.getenv("INFLUXDB_URL")
-
-client = influxdb_client.InfluxDBClient(
-    url=INFLUXDB_URL,
-    token=INFLUXDB_TOKEN,
-    org=INFLUXDB_ORG
-)
+BUCKET = "WeatherForecast"
 
 influx_api = client.query_api()
 
@@ -43,7 +33,7 @@ def get_models():
 def get_forecasts(model_id:str, forecast_datetime:datetime):
     query = f'''
         import "date"
-        from(bucket: "{INFLUXDB_BUCKET}")
+        from(bucket: "{BUCKET}")
         |> range(start: date.sub(from:{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}, d:14d), stop: {forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')})
         |> filter(fn: (r) => r["_measurement"] == "forecast")
         |> filter(fn: (r) => r["forecast_date"] == "{forecast_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')}")
@@ -70,7 +60,7 @@ def get_forecasts(model_id:str, forecast_datetime:datetime):
 def get_current_forecast(model_id:str):
     query = f'''
         import "date"
-        from(bucket: "{INFLUXDB_BUCKET}")
+        from(bucket: "{BUCKET}")
         |> range(start: -2h)
         |> filter(fn: (r) => r["_measurement"] == "forecast")
         |> filter(fn: (r) => r["model"] == "{model_id}")
@@ -101,7 +91,7 @@ def get_current_forecast(model_id:str):
 
 def get_archive_water_level(station_id:int, start:datetime, stop:datetime):
     query = f'''
-        from(bucket: "{INFLUXDB_BUCKET}")
+        from(bucket: "{BUCKET}")
             |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
             |> filter(fn: (r) => r["_measurement"] == "water_level")
             |> filter(fn: (r) => r["_field"] == "value")
