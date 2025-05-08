@@ -20,7 +20,10 @@ def save_station_data_to_influxdb(data):
     
     # Check types
     if isinstance(data["timestamp"], str):
-        data["timestamp"] = datetime.fromisoformat(data["timestamp"])
+        try:
+            data["timestamp"] = datetime.strptime(data["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            raise ValueError("Timestamp must be in the format YYYY-MM-DDTHH:MM:SSZ")
     else:
         raise ValueError("Timestamp must be a string in the format YYYY-MM-DDTHH:MM:SSZ") 
 
