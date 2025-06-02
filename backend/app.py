@@ -27,7 +27,8 @@ def models():
         models = get_models()
         return jsonify(models)
     except Exception as e:
-        logging.exception("Error occurred while querying InfluxDB for tag values:", exc_info=e)
+        logging.exception(
+            "Error occurred while querying InfluxDB for tag values:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -40,7 +41,8 @@ def forecasts():
         return jsonify({"error": "datetime and model_id are required parameters"}), 400
 
     try:
-        forecast_datetime = datetime.strptime(forecast_datetime, '%Y-%m-%dT%H:%M:%SZ')
+        forecast_datetime = datetime.strptime(
+            forecast_datetime, '%Y-%m-%dT%H:%M:%SZ')
         forecast_datetime = forecast_datetime.replace(tzinfo=pytz.utc)
 
     except ValueError:
@@ -49,15 +51,17 @@ def forecasts():
     try:
         df = get_forecasts(model_id, forecast_datetime)
         return jsonify(df.to_dict(orient='records'))
-    
+
     except KeyError as e:
-        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        logging.exception(
+            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": f"KeyError: {str(e)}"}), 400
 
     except Exception as e:
-        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        logging.exception(
+            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": str(e)}), 500
-    
+
 
 @app.route('/current-forecast', methods=['GET'])
 def current_forecast():
@@ -69,13 +73,15 @@ def current_forecast():
     try:
         df = get_current_forecast(model_id)
         return jsonify(df.to_dict(orient='records'))
-    
+
     except KeyError as e:
-        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        logging.exception(
+            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": f"KeyError: {str(e)}"}), 400
 
     except Exception as e:
-        logging.exception("Error occurred while querying InfluxDB for forecasts:", exc_info=e)
+        logging.exception(
+            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -84,12 +90,16 @@ def actual_live_data():
     try:
         dwd_measurements = dwd.get_real_time_data()
         # current default station is Konstanz Rhein
-        pegel_online_measurements = pegel_online.get_water_level_measurements(PegelOnline.Period.last_24_hours, PegelOnline.Station.KONSTANZ_RHEIN)
-        pegel_online_measurements = sorted(pegel_online_measurements, key=lambda x: x.date, reverse=True)[0]
-        result = [entry.to_json() for entry in dwd_measurements + [pegel_online_measurements]]
+        pegel_online_measurements = pegel_online.get_water_level_measurements(
+            PegelOnline.Period.last_24_hours, PegelOnline.Station.KONSTANZ_RHEIN)
+        pegel_online_measurements = sorted(
+            pegel_online_measurements, key=lambda x: x.date, reverse=True)[0]
+        result = [entry.to_json() for entry in dwd_measurements +
+                  [pegel_online_measurements]]
         return jsonify(result)
     except Exception as e:
-        logging.exception("Error occurred while fetching actual data:", exc_info=e)
+        logging.exception(
+            "Error occurred while fetching actual data:", exc_info=e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -132,21 +142,24 @@ def actual_weather_archive():
     if date and model_id:
         try:
             open_meteo = OpenMeteo()
-            data = open_meteo.get_measurements("icon_seamless", datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
+            data = open_meteo.get_measurements(
+                "icon_seamless", datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
             return jsonify(data.to_dict(orient='records'))
         except Exception as e:
-            logging.exception("Error occurred while retrieving data from OpenMeteo archive endpoint:", exc_info=e)
+            logging.exception(
+                "Error occurred while retrieving data from OpenMeteo archive endpoint:", exc_info=e)
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "date and model_id are required parameters"}), 400
-    
+
+
 @app.route('/archive/water-level', methods=['GET'])
 def archive_water_level():
     start = request.args.get('start')
     stop = request.args.get('stop')
     station_id = request.args.get('station_id')
     if start and stop and station_id:
-            
+
         try:
             start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
             start = start.replace(tzinfo=pytz.utc)
@@ -158,7 +171,7 @@ def archive_water_level():
             stop = stop.replace(tzinfo=pytz.utc)
         except ValueError:
             return jsonify({"error": "stop must be in the format YYYY-MM-DD HH:MM:SS"}), 400
-        
+
         if not station_id.isdigit():
             return jsonify({"error": "station_id must be an integer"}), 400
         station_id = int(station_id)
@@ -168,17 +181,15 @@ def archive_water_level():
             station_id = 3329
         else:
             return jsonify({"error": "station_id must be either 1 (Konstanz Bodensee) or 2 (Konstanz Rhein)"}), 400
-            
+
         try:
             df = get_archive_water_level(station_id, start, stop)
             return jsonify(df.to_dict(orient='records'))
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-            
+
     else:
         return jsonify({"error": "start and stop are required parameters"}), 400
-
-
 
 
 @app.route('/actual/fog-count-history', methods=['GET'])
@@ -225,11 +236,14 @@ def actual_water_level():
         else:
             return jsonify({"error": "station_id must be either 1 (Konstanz Bodensee) or 2 (Konstanz Rhein)"}), 400
         try:
-            data = pegel_online.get_water_level_measurements(PegelOnline.Period.last_31_days, station_id)
+            data = pegel_online.get_water_level_measurements(
+                PegelOnline.Period.last_31_days, station_id)
             return jsonify([entry.to_json() for entry in data])
         except BaseException as e:
-            logging.exception("Error occurred while fetching water level measurements for the last 30 days:", exc_info=e)
+            logging.exception(
+                "Error occurred while fetching water level measurements for the last 30 days:", exc_info=e)
             return jsonify({"error": str(e)}), 500
+
 
 @app.route('/dwd-proxy', methods=['GET'])
 def dwd_proxy():
@@ -268,24 +282,26 @@ def get_station_data():
         start = start.replace(tzinfo=pytz.utc)
     except ValueError:
         return jsonify({"error": "start must be in the format format YYYY-MM-DDTHH:MM:SSZ"}), 400
-    
+
     try:
         stop = datetime.strptime(stop, '%Y-%m-%dT%H:%M:%SZ')
         stop = stop.replace(tzinfo=pytz.utc)
     except ValueError:
         return jsonify({"error": "stop must be in the format format YYYY-MM-DDTHH:MM:SSZ"}), 400
-    
+
     try:
         data = get_station_data_from_influxdb(start, stop)
         return jsonify(data)
     except Exception as e:
-        logging.exception("Error occurred while retrieving station data from InfluxDB:", exc_info=e)
+        logging.exception(
+            "Error occurred while retrieving station data from InfluxDB:", exc_info=e)
         return jsonify({"error": str(e)}), 500
-    
+
 
 @app.route('/health-check', methods=['GET'])
 def health_check():
     return "success"
+
 
 if __name__ == '__main__':
     app.run(debug=True)
