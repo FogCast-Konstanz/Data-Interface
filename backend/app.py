@@ -11,7 +11,7 @@ from actual.PegelOnline import PegelOnline
 from actual.OpenMeteo import OpenMeteo
 from auth import require_api_key
 from weather_forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
-from weather_data.raspi_station import save_station_data_to_influxdb
+from weather_data.raspi_station import save_station_data_to_influxdb, get_station_data_from_influxdb
 
 app = Flask(__name__)
 CORS(app)
@@ -254,6 +254,34 @@ def post_station_data():
         return jsonify({"error": str(e)}), 400
     return jsonify({"message": "Data received successfully"}), 200
 
+
+@app.route('/weatherstation', methods=['GET'])
+def get_station_data():
+    start = request.args.get('start')
+    stop = request.args.get('stop')
+
+    if not start or not stop:
+        return jsonify({"error": "start and stop are required parameters"}), 400
+
+    try:
+        start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ')
+        start = start.replace(tzinfo=pytz.utc)
+    except ValueError:
+        return jsonify({"error": "start must be in the format format YYYY-MM-DDTHH:MM:SSZ"}), 400
+    
+    try:
+        stop = datetime.strptime(stop, '%Y-%m-%dT%H:%M:%SZ')
+        stop = stop.replace(tzinfo=pytz.utc)
+    except ValueError:
+        return jsonify({"error": "stop must be in the format format YYYY-MM-DDTHH:MM:SSZ"}), 400
+    
+    try:
+        data = get_station_data_from_influxdb(start, stop)
+        return jsonify(data)
+    except Exception as e:
+        logging.exception("Error occurred while retrieving station data from InfluxDB:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
+    
 
 @app.route('/health-check', methods=['GET'])
 def health_check():

@@ -2,6 +2,7 @@ from datetime import datetime
 import influxdb_client
 import influxdb_client.client
 import influxdb_client.client.write_api
+import pandas as pd
 from config import influx_client, INFLUXDB_ORG
 
 BUCKET = "WeatherData"
@@ -46,3 +47,32 @@ def save_station_data_to_influxdb(data):
     # Write the point to InfluxDB
     write_api.write(bucket=BUCKET, org=INFLUXDB_ORG, record=point)
     write_api.close()
+
+  
+def get_station_data_from_influxdb(start: datetime, stop: datetime):
+    """
+    Retrieve station data from InfluxDB within a specified time range.
+    """
+    query = f'''
+    from(bucket: "{BUCKET}")
+      |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
+      |> filter(fn: (r) => r["_measurement"] == "weather_station")
+      |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+      |> sort(columns: ["_time"])
+      |> drop(columns: ["_start", "_stop", "_measurement"])
+      |> rename(columns: {{_time: "time"}})
+    '''
+    
+    query_api = influx_client.query_api()
+    result = query_api.query(query=query, org=INFLUXDB_ORG)
+    
+    data = []
+    for table in result:
+      for record in table.records:
+        data.append(
+            record.values
+        )
+    
+    df = pd.DataFrame(data)
+    df = df.drop(columns=["result", "table"])
+    return df.to_dict(orient='records')
