@@ -12,6 +12,7 @@ from actual.OpenMeteo import OpenMeteo
 from auth import require_api_key
 from weather_forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
 from weather_data.raspi_station import save_station_data_to_influxdb, get_station_data_from_influxdb
+from models.benchmarking.influx import query_benchmark_scores
 
 app = Flask(__name__)
 CORS(app)
@@ -296,7 +297,19 @@ def get_station_data():
         logging.exception(
             "Error occurred while retrieving station data from InfluxDB:", exc_info=e)
         return jsonify({"error": str(e)}), 500
-
+    
+@app.route('/models/benchmarking', methods=['GET'])
+def get_model_benchmarking():
+    time_range = request.args.get('time_range')
+    if time_range in ["4d", "7d", "15d", "30d"]:
+        try:
+            return jsonify(query_benchmark_scores(time_range).to_dict(orient='records'))
+        except BaseException as e:
+            logging.exception(
+                f"Error occurred while fetching model benchmarking scores for timerange={time_range}:", exc_info=e)
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "time_range must be one of the following: 4d, 7d, 15d, 30d"}), 400
 
 @app.route('/health-check', methods=['GET'])
 def health_check():

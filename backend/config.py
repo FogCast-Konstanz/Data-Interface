@@ -17,5 +17,8 @@ if not API_KEY:
 influx_client = influxdb_client.InfluxDBClient(
     url=INFLUXDB_URL,
     token=INFLUXDB_TOKEN,
-    org=INFLUXDB_ORG
+    org=INFLUXDB_ORG,
+    timeout=120_000,
+    verify_ssl=False,
+    http_client_kwargs={"timeout": 300}
 )
