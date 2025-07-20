@@ -2,6 +2,7 @@ from datetime import datetime
 import influxdb_client
 import influxdb_client.client
 import influxdb_client.client.write_api
+from influxdb_client import Point
 import pandas as pd
 from config import influx_client, INFLUXDB_ORG
 
@@ -45,7 +46,7 @@ def save_station_data_to_influxdb(data):
         write_options=influxdb_client.client.write_api.SYNCHRONOUS)
 
     # Create a point
-    point = influxdb_client.Point("weather_station") \
+    point = Point("weather_station") \
         .field("temperature", float(data["temperature"])) \
         .field("water_temperature", float(data["water_temperature"])) \
         .field("humidity", float(data["humidity"])) \

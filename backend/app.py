@@ -11,7 +11,7 @@ from actual.PegelOnline import PegelOnline
 from actual.OpenMeteo import OpenMeteo
 from auth import require_api_key
 from weather_forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level
-from weather_data.raspi_station import save_station_data_to_influxdb, get_station_data_from_influxdb
+from weather_station.raspi_station import save_station_data_to_influxdb, get_station_data_from_influxdb
 from models.benchmarking.influx import query_benchmark_scores
 
 app = Flask(__name__)
