@@ -5,6 +5,7 @@ from datetime import datetime
 from dateutil import parser
 import pytz
 
+
 def to_generic_response(data: list[dict]) -> list[GenericResponseObject]:
     """
     Convert a list of dictionary data entries into a list of GenericResponseObject instances.
@@ -38,6 +39,7 @@ def to_generic_response(data: list[dict]) -> list[GenericResponseObject]:
         ))
     return result
 
+
 class PegelOnline:
     """
     Represents a system to interact with Pegel Online services.
@@ -46,13 +48,16 @@ class PegelOnline:
     that provides water level and related hydrological information. The class includes
     methods for fetching and parsing data.
     """
-    
+
     class Station(Enum):
         """
         Represents Pegel Online stations.
         """
         KONSTANZ_RHEIN = "e020e651-e422-46d3-ae28-34887c5a4a8e"
         KONSTANZ_BODENSEE = "aa9179c1-17ef-4c61-a48a-74193fa7bfdf"
+
+        KONSTANZ_RHEIN_N = 3329
+        KONSTANZ_BODENSEE_N = 906
 
     class Period(Enum):
         """
@@ -84,4 +89,5 @@ class PegelOnline:
         if response.status_code == 200:
             return to_generic_response(response.json())
         else:
-            raise ValueError(f"Failed to retrieve data for period {period}. Status code: {response.status_code}")
+            raise ValueError(
+                f"Failed to retrieve data for period {period}. Status code: {response.status_code}")

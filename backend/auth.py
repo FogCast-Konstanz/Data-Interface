@@ -1,6 +1,7 @@
 from flask import request, abort
 from config import API_KEY
 
+
 def require_api_key(func):
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get("Authorization")

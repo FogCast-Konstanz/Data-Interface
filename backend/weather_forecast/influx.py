@@ -9,6 +9,7 @@ BUCKET = "WeatherForecast"
 
 influx_api = influx_client.query_api()
 
+
 def _query_tag_values(tag_key: str):
     query = f'''
         import "influxdata/influxdb/schema"
@@ -30,7 +31,8 @@ def get_models():
     models = _query_tag_values("model")
     return models
 
-def get_forecasts(model_id:str, forecast_datetime:datetime):
+
+def get_forecasts(model_id: str, forecast_datetime: datetime):
     query = f'''
         import "date"
         from(bucket: "{BUCKET}")
@@ -57,7 +59,8 @@ def get_forecasts(model_id:str, forecast_datetime:datetime):
 
     return df
 
-def get_current_forecast(model_id:str):
+
+def get_current_forecast(model_id: str):
     query = f'''
         import "date"
         from(bucket: "{BUCKET}")
@@ -89,17 +92,24 @@ def get_current_forecast(model_id:str):
     return df
 
 
-def get_archive_water_level(station_id:int, start:datetime, stop:datetime):
-    query = f'''
-        from(bucket: "{BUCKET}")
-            |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
-            |> filter(fn: (r) => r["_measurement"] == "water_level")
-            |> filter(fn: (r) => r["_field"] == "value")
-            |> filter(fn: (r) => r["station_id"] == "{station_id}")
-            |> drop(columns: ["_measurement", "_field", "table", "_start", "_stop", "station_id"])  
+def _query_water_level(station_id: int, start: datetime, stop: datetime, aggregate_window: str = None):
+    base_query = f'''
+    from(bucket: "{BUCKET}")
+      |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
+      |> filter(fn: (r) => r["_measurement"] == "water_level")
+      |> filter(fn: (r) => r["_field"] == "value")
+      |> filter(fn: (r) => r["station_id"] == "{station_id}")
+  '''
+    if aggregate_window:
+        base_query += f'''
+      |> aggregateWindow(every: {aggregate_window}, fn: mean, createEmpty: false)
     '''
+    base_query += '''
+    |> drop(columns: ["_measurement", "_field", "table", "_start", "_stop", "station_id"])
+  '''
+
     query_api = influx_client.query_api()
-    tables = query_api.query(query=query, org=INFLUXDB_ORG)
+    tables = query_api.query(query=base_query, org=INFLUXDB_ORG)
 
     # Parse query results into a DataFrame
     data = []
@@ -110,4 +120,21 @@ def get_archive_water_level(station_id:int, start:datetime, stop:datetime):
     df = pd.DataFrame(data)
     df = df.drop(columns=["result", "table"])
     df = df.rename(columns={"_time": "date", "_value": "value"})
+    return df
+
+
+def get_archive_water_level(station_id: int, start: datetime, stop: datetime):
+    df = _query_water_level(station_id, start, stop)
+    return df
+
+
+def get_monthly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
+    df = _query_water_level(station_id, start, stop, aggregate_window="1mo")
+    df["date"] = pd.to_datetime(df["date"]).dt.to_period("M").dt.to_timestamp()
+    return df
+
+
+def get_yearly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
+    df = _query_water_level(station_id, start, stop, aggregate_window="1y")
+    df["date"] = pd.to_datetime(df["date"]).dt.to_period("Y").dt.to_timestamp()
     return df
