@@ -6,9 +6,9 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from actual.DWD import DWD
-from actual.PegelOnline import PegelOnline
-from actual.OpenMeteo import OpenMeteo
+from services.actual.DWD import DWD
+from services.actual.PegelOnline import PegelOnline
+from services.actual.OpenMeteo import OpenMeteo
 from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level
 from models.benchmarking.influx import query_benchmark_scores
 from routes.models_routes import models_bp

@@ -4,7 +4,7 @@ import pytz
 import logging
 
 from services.raspi_station import save_station_data_to_influxdb, get_station_data_from_influxdb
-from auth import require_api_key
+from services.auth import require_api_key
 
 weatherstation_bp = Blueprint('weatherstation', __name__)
 
