@@ -10,7 +10,7 @@ from services.actual.DWD import DWD
 from services.actual.PegelOnline import PegelOnline
 from services.actual.OpenMeteo import OpenMeteo
 from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level
-from models.benchmarking.influx import query_benchmark_scores
+from services.benchmarking.influx import query_benchmark_scores
 from routes.models_routes import models_bp
 from routes.forecasts_routes import forecasts_bp
 from routes.weatherstation import weatherstation_bp
