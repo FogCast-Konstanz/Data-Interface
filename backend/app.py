@@ -9,11 +9,11 @@ from flask_cors import CORS
 from actual.DWD import DWD
 from actual.PegelOnline import PegelOnline
 from actual.OpenMeteo import OpenMeteo
-from auth import require_api_key
-from weather_forecast.influx import get_models, get_forecasts, get_current_forecast, get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level
-from weather_station.raspi_station import save_station_data_to_influxdb, get_station_data_from_influxdb
+from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level
 from models.benchmarking.influx import query_benchmark_scores
-import re
+from routes.models_routes import models_bp
+from routes.forecasts_routes import forecasts_bp
+from routes.weatherstation import weatherstation_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -22,69 +22,9 @@ CORS(app)
 dwd = DWD()
 pegel_online = PegelOnline()
 
-
-@app.route("/models")
-def models():
-    try:
-        models = get_models()
-        return jsonify(models)
-    except Exception as e:
-        logging.exception(
-            "Error occurred while querying InfluxDB for tag values:", exc_info=e)
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/forecasts', methods=['GET'])
-def forecasts():
-    forecast_datetime = request.args.get('datetime')
-    model_id = request.args.get('model_id')
-
-    if not forecast_datetime or not model_id:
-        return jsonify({"error": "datetime and model_id are required parameters"}), 400
-
-    try:
-        forecast_datetime = datetime.strptime(
-            forecast_datetime, '%Y-%m-%dT%H:%M:%SZ')
-        forecast_datetime = forecast_datetime.replace(tzinfo=pytz.utc)
-
-    except ValueError:
-        return jsonify({"error": "datetime must be in the format YYYY-MM-DDTHH:MM:SSZ"}), 400
-
-    try:
-        df = get_forecasts(model_id, forecast_datetime)
-        return jsonify(df.to_dict(orient='records'))
-
-    except KeyError as e:
-        logging.exception(
-            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
-        return jsonify({"error": f"KeyError: {str(e)}"}), 400
-
-    except Exception as e:
-        logging.exception(
-            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/current-forecast', methods=['GET'])
-def current_forecast():
-    model_id = request.args.get('model_id')
-
-    if not model_id:
-        return jsonify({"error": "model_id is a required parameter"}), 400
-
-    try:
-        df = get_current_forecast(model_id)
-        return jsonify(df.to_dict(orient='records'))
-
-    except KeyError as e:
-        logging.exception(
-            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
-        return jsonify({"error": f"KeyError: {str(e)}"}), 400
-
-    except Exception as e:
-        logging.exception(
-            "Error occurred while querying InfluxDB for forecasts:", exc_info=e)
-        return jsonify({"error": str(e)}), 500
+app.register_blueprint(models_bp)
+app.register_blueprint(forecasts_bp)
+app.register_blueprint(weatherstation_bp)
 
 
 @app.route('/actual/live-data', methods=['GET'])
@@ -269,48 +209,6 @@ def dwd_proxy():
     other_params = {k: v for k, v in params.items() if k != 'url'}
     response = requests.get(url, params=other_params)
     return response.json()
-
-
-@app.route('/weatherstation', methods=['POST'])
-@require_api_key
-def post_station_data():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    try:
-        save_station_data_to_influxdb(data)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    return jsonify({"message": "Data received successfully"}), 200
-
-
-@app.route('/weatherstation', methods=['GET'])
-def get_station_data():
-    start = request.args.get('start')
-    stop = request.args.get('stop')
-
-    if not start or not stop:
-        return jsonify({"error": "start and stop are required parameters"}), 400
-
-    try:
-        start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ')
-        start = start.replace(tzinfo=pytz.utc)
-    except ValueError:
-        return jsonify({"error": "start must be in the format format YYYY-MM-DDTHH:MM:SSZ"}), 400
-
-    try:
-        stop = datetime.strptime(stop, '%Y-%m-%dT%H:%M:%SZ')
-        stop = stop.replace(tzinfo=pytz.utc)
-    except ValueError:
-        return jsonify({"error": "stop must be in the format format YYYY-MM-DDTHH:MM:SSZ"}), 400
-
-    try:
-        data = get_station_data_from_influxdb(start, stop)
-        return jsonify(data)
-    except Exception as e:
-        logging.exception(
-            "Error occurred while retrieving station data from InfluxDB:", exc_info=e)
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/models/benchmarking', methods=['GET'])

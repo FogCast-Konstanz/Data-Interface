@@ -1,8 +1,9 @@
+from typing import Optional
 from datetime import datetime
 import pandas as pd
 import pytz
 
-from weather_forecast.fog import add_fog_based_on_weather_code
+from services.fog import add_fog_based_on_weather_code
 from config import influx_client, INFLUXDB_ORG
 
 BUCKET = "WeatherForecast"
@@ -82,6 +83,9 @@ def get_current_forecast(model_id: str):
         for record in table.records:
             data.append(record.values)
 
+    if len(data) == 0:
+        raise ValueError("No data for requested forecast date")
+
     df = pd.DataFrame(data)
     df["forecast_date"] = pd.to_datetime(df["forecast_date"])
     df = add_fog_based_on_weather_code(df)
@@ -92,7 +96,7 @@ def get_current_forecast(model_id: str):
     return df
 
 
-def _query_water_level(station_id: int, start: datetime, stop: datetime, aggregate_window: str = None):
+def _query_water_level(station_id: int, start: datetime, stop: datetime, aggregate_window: Optional[str] = None):
     base_query = f'''
     from(bucket: "{BUCKET}")
       |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
