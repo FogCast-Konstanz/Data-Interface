@@ -26,6 +26,8 @@ def dwd_proxy():
         return jsonify({"error": "only application/json content type is supported"}), 400
     params = request.args
     url = params.get('url')
+    if not url:
+        return jsonify({"error": "url parameter is required"}), 400
     other_params = {k: v for k, v in params.items() if k != 'url'}
     response = requests.get(url, params=other_params)
     return response.json()
