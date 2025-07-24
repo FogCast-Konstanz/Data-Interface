@@ -131,15 +131,18 @@ def get_archive_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop)
     return df
 
+
 def get_daily_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1d")
     df["date"] = pd.to_datetime(df["date"]).dt.to_period("D").dt.to_timestamp()
     return df
-  
+
+
 def get_weekly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1w")
     df["date"] = pd.to_datetime(df["date"]).dt.to_period("W").dt.to_timestamp()
     return df
+
 
 def get_monthly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1mo")

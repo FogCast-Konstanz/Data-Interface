@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from services.actual.DWD import DWD
 from services.actual.PegelOnline import PegelOnline
 from services.actual.OpenMeteo import OpenMeteo
-from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level
+from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level, get_weekly_averaged_water_level, get_daily_averaged_water_level
 
 actual_bp = Blueprint('actual', __name__)
 
@@ -115,12 +115,16 @@ def archive_water_level():
         # Validate and parse 'period' parameter
         period = request.args.get('period')
         if period:
-            if period == "m":
-                df = get_monthly_averaged_water_level(station_id, start, stop)
-            elif period == "y":
+            if period == "y":
                 df = get_yearly_averaged_water_level(station_id, start, stop)
+            elif period == "m":
+                df = get_monthly_averaged_water_level(station_id, start, stop)
+            elif period == "w":
+                df = get_weekly_averaged_water_level(station_id, start, stop)
+            elif period == "d":
+                df = get_daily_averaged_water_level(station_id, start, stop)
             else:
-                return jsonify({"error": "period must be either 'm' (monthly) or 'y' (yearly)"}), 400
+                return jsonify({"error": "period must be either 'y' (yearly), 'm' (monthly), 'w' (weekly) or 'd' (daily)"}), 400
         else:
             df = get_archive_water_level(station_id, start, stop)
 
@@ -183,6 +187,7 @@ def actual_water_level():
                 PegelOnline.Period.last_31_days, station_id)
             return jsonify([entry for entry in data])
         except BaseException as e:
-            return jsonify({"error": str(e)}), 500  # Explicitly return a response
+            # Explicitly return a response
+            return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "station_id is required"}), 400
