@@ -22,6 +22,8 @@ def spec():
     swag = swagger(app)
     swag['info']['version'] = "1.0"
     swag['info']['title'] = "Fogcast API"
+    swag['basePath'] = '/api'
+    swag['host'] = request.host
     return jsonify(swag)
 
 
