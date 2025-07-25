@@ -4,7 +4,7 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from services.benchmarking.influx import query_benchmark_scores
+from services.benchmarking.influx import get_latest_benchmark
 from routes.models_routes import models_bp
 from routes.forecasts_routes import forecasts_bp
 from routes.weatherstation_routes import weatherstation_bp
@@ -34,16 +34,12 @@ def dwd_proxy():
 
 @app.route('/models/benchmarking', methods=['GET'])
 def get_model_benchmarking():
-    time_range = request.args.get('time_range')
-    if time_range in ["1d", "4d", "7d", "15d", "30d"]:
-        try:
-            return jsonify(query_benchmark_scores(time_range).to_dict(orient='records'))
-        except BaseException as e:
-            logging.exception(
-                f"Error occurred while fetching model benchmarking scores for timerange={time_range}:", exc_info=e)
-            return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"error": "time_range must be one of the following: 1d, 4d, 7d, 15d, 30d"}), 400
+    try:
+        return jsonify(get_latest_benchmark().to_dict(orient='records'))
+    except BaseException as e:
+        logging.exception(
+            f"Error occurred while fetching model benchmarking scores:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/health-check', methods=['GET'])
