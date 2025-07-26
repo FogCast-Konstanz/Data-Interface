@@ -56,7 +56,7 @@ def get_forecasts(model_id: str, forecast_datetime: datetime):
 
     df = pd.DataFrame(data)
     df["forecast_date"] = pd.to_datetime(df["forecast_date"])
-    df = add_fog_based_on_weather_code(df)
+    df = add_fog(df)
 
     return df
 
