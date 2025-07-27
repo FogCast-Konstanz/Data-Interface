@@ -1,19 +1,19 @@
 # Fogcast Data Interface
 
 ## Overview
-The Fogcast Data Interface repository provides the backend service for processing weather and water level data. It includes modules for fetching the current weather from DWD, OpenMeteo and PegelOnline, as well as for fetching weather forecasts based on forecasts from OpenMeteo. It also contains modules that collect and process weather data from the during the project installed weather station in Konstanz.
+The Fogcast Data Interface repository provides the backend service for processing weather, water level and model benchmarking data. It includes modules for fetching the current weather from DWD, OpenMeteo and PegelOnline, as well as for fetching weather forecasts based on forecasts from OpenMeteo and self calculated benchmarking for all the weather models. It also contains modules that collect and process weather data from the during the project installed weather station in Konstanz.
 
 ## Repository Structure
 
 ### Root Level
 - **backend/**: Contains the main application logic, including authentication, configuration, and API endpoints
 - **fog-model/**: Jupyter notebooks for fog prediction analysis using Meteostat and XGBoost
-- **tests/**: Jupyter notebooks for testing data retrieval
+- **tests/**: Jupyter notebooks for testing data retrieval. Example requests to fetch data.
 - **compose.yaml**: Docker Compose configuration for containerized deployment
 - **README.md**: Project documentation
 
 ### Backend Structure
-- **app.py**: Main Flask application entry point with route registration and Swagger documentation
+- **app.py**: Main Flask application entry point with route registration and Swagger documentation and benchmarking route
 - **config.py**: Configuration settings for database connections and external services
 - **requirements.txt**: Python dependencies for the backend service
 - **wsgi.py**: WSGI entry point for production deployment
@@ -176,3 +176,6 @@ Refer to `requirements.txt` for dependencies.
 - **InfluxDB**: Time-series database for storing processed weather, forecast, and benchmarking data
 - **Raspberry Pi Weather Station**: Local weather station installed in Konstanz
 
+### Future Work
+- **Solar Data**: Create a endpoint to access the SolarLog solar data of the HTWG Konstanz and compare it with the measured sun hours per day of DWD.
+- **CI / CD Pipelines**: Automate the deployment process for dev and production server with pipelines
