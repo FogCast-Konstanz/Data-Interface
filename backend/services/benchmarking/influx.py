@@ -15,7 +15,7 @@ def get_latest_benchmark():
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     |> keep(columns: ["model", "cloud_cover", "dew_point_2m", "precipitation", 
                         "relative_humidity_2m", "surface_pressure", "temperature_2m", 
-                        "lead_time", "forecast_date"])
+                        "lead_time", "forecast_date", "wind_speed_10m"])
     '''
 
     df_all = query_api.query_data_frame(raw_query)
