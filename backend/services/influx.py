@@ -54,6 +54,9 @@ def get_forecasts(model_id: str, forecast_datetime: datetime):
         for record in table.records:
             data.append(record.values)
 
+    if not data:
+        return pd.DataFrame()
+
     df = pd.DataFrame(data)
     df["forecast_date"] = pd.to_datetime(df["forecast_date"])
     df = add_fog(df)
