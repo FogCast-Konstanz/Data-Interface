@@ -7,6 +7,9 @@ from services.fog import add_fog
 from config import influx_client, INFLUXDB_ORG
 
 BUCKET = "WeatherForecast"
+WEATHER_BUCKET = "WeatherData"
+CEILOMETER_MEASUREMENT = "ceilometer"
+UV_MEASUREMENT = "uv"
 
 influx_api = influx_client.query_api()
 
@@ -58,6 +61,11 @@ def get_forecasts(model_id: str, forecast_datetime: datetime):
         return pd.DataFrame()
 
     df = pd.DataFrame(data)
+
+    if df.empty:
+        # Return empty DataFrame with expected structure
+        return df
+
     df["forecast_date"] = pd.to_datetime(df["forecast_date"])
     df = add_fog(df)
 
@@ -125,8 +133,13 @@ def _query_water_level(station_id: int, start: datetime, stop: datetime, aggrega
             data.append(record.values)
 
     df = pd.DataFrame(data)
-    df = df.drop(columns=["result", "table"])
-    df = df.rename(columns={"_time": "date", "_value": "value"})
+
+    if not df.empty:
+        columns_to_drop = [col for col in ["result", "table"] if col in df.columns]
+        if columns_to_drop:
+            df = df.drop(columns=columns_to_drop)
+        df = df.rename(columns={"_time": "date", "_value": "value"})
+
     return df
 
 
@@ -137,23 +150,75 @@ def get_archive_water_level(station_id: int, start: datetime, stop: datetime):
 
 def get_daily_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1d")
-    df["date"] = pd.to_datetime(df["date"]).dt.to_period("D").dt.to_timestamp()
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"]).dt.to_period("D").dt.to_timestamp()
     return df
 
 
 def get_weekly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1w")
-    df["date"] = pd.to_datetime(df["date"]).dt.to_period("W").dt.to_timestamp()
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"]).dt.to_period("W").dt.to_timestamp()
     return df
 
 
 def get_monthly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1mo")
-    df["date"] = pd.to_datetime(df["date"]).dt.to_period("M").dt.to_timestamp()
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"]).dt.to_period("M").dt.to_timestamp()
     return df
 
 
 def get_yearly_averaged_water_level(station_id: int, start: datetime, stop: datetime):
     df = _query_water_level(station_id, start, stop, aggregate_window="1y")
-    df["date"] = pd.to_datetime(df["date"]).dt.to_period("Y").dt.to_timestamp()
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"]).dt.to_period("Y").dt.to_timestamp()
+    return df
+
+
+def get_ceilometer_history(start: datetime, stop: datetime):
+    query = f'''
+    from(bucket: "{WEATHER_BUCKET}")
+      |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
+      |> filter(fn: (r) => r["_measurement"] == "{CEILOMETER_MEASUREMENT}")
+      |> sort(columns: ["_time"])
+      |> rename(columns: {{_time: "date", _value: "value"}})
+    '''
+
+    query_api = influx_client.query_api()
+    tables = query_api.query(query=query, org=INFLUXDB_ORG)
+
+    data = []
+    for table in tables:
+        for record in table.records:
+            data.append(record.values)
+
+    df = pd.DataFrame(data)
+    if not df.empty:
+        columns_to_drop = [col for col in ["result", "table", "_measurement", "_field", "_start", "_stop"] if col in df.columns]
+        if columns_to_drop:
+            df = df.drop(columns=columns_to_drop)
+    return df
+
+
+def get_uv_history(start: datetime, stop: datetime):
+    query = f'''
+    from(bucket: "{WEATHER_BUCKET}")
+      |> range(start: {start.strftime('%Y-%m-%dT%H:%M:%SZ')}, stop: {stop.strftime('%Y-%m-%dT%H:%M:%SZ')})
+      |> filter(fn: (r) => r["_measurement"] == "{UV_MEASUREMENT}")
+      |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+      |> sort(columns: ["_time"])
+      |> rename(columns: {{_time: "date"}})
+    '''
+
+    tables = influx_api.query(query)
+    data = [record.values for table in tables for record in table.records]
+    df = pd.DataFrame(data)
+    if not df.empty:
+        columns_to_drop = [
+            col for col in ["result", "table", "_measurement", "_start", "_stop"]
+            if col in df.columns
+        ]
+        if columns_to_drop:
+            df = df.drop(columns=columns_to_drop)
     return df

@@ -133,6 +133,45 @@ class DWD:
         else:
             raise NotImplementedError("Only daily and hourly requests are supported for temperature yet.")
 
+    def get_weather_history(self, utc_start: datetime, utc_end: datetime, frequency: Frequency) -> list[dict]:
+        """Return temperature and humidity observations in a tabular API shape."""
+        if frequency not in (self.Frequency.hourly, self.Frequency.ten_minutes):
+            raise NotImplementedError("Weather history supports hourly and ten-minute requests only.")
+
+        frames = []
+        for parameter, output_name in (
+            (self.Params.temperature, "temperature"),
+            (self.Params.humidity, "humidity"),
+        ):
+            request = self.__create_dwd_historical_observation_request(
+                parameters=parameter,
+                dataset=self.Dataset.temperature_air,
+                frequency=frequency,
+                start_date=utc_start,
+                end_date=utc_end,
+            )
+            frame = request.values.all().df.to_pandas()
+            if not frame.empty:
+                frame = frame[["date", "value"]].rename(columns={"value": output_name})
+                frames.append(frame)
+
+        if not frames:
+            return []
+
+        result = frames[0]
+        for frame in frames[1:]:
+            result = result.merge(frame, on="date", how="outer")
+
+        result = result.sort_values("date")
+        records = []
+        for row in result.to_dict(orient="records"):
+            records.append({
+                "timestamp": pd.Timestamp(row["date"]).to_pydatetime().isoformat(),
+                "temperature": None if pd.isna(row.get("temperature")) else float(row["temperature"]),
+                "humidity": None if pd.isna(row.get("humidity")) else float(row["humidity"]),
+            })
+        return records
+
     def get_fog_count(self, utc_start: datetime, utc_end: datetime, frequency: Frequency) -> list[
         GenericResponseObject]:
         """

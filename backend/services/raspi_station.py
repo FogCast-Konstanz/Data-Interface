@@ -7,6 +7,21 @@ import pandas as pd
 from config import influx_client, INFLUXDB_ORG
 
 BUCKET = "WeatherData"
+UV_MEASUREMENT = "uv"
+
+
+def _get_numeric_value(data: dict, *keys):
+    for key in keys:
+        if key in data and data[key] is not None:
+            value = data[key]
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, str):
+                try:
+                    return float(value)
+                except ValueError:
+                    pass
+    return None
 
 
 def save_station_data_to_influxdb(data):
@@ -17,8 +32,7 @@ def save_station_data_to_influxdb(data):
     if not isinstance(data, dict):
         raise ValueError("Data must be a dictionary")
 
-    required_fields = ["timestamp", "temperature",
-                       "water_temperature", "humidity"]
+    required_fields = ["timestamp", "temperature", "humidity"]
     if not all(field in data for field in required_fields):
         raise ValueError(
             f"Data must contain the following fields: {', '.join(required_fields)}")
@@ -35,11 +49,18 @@ def save_station_data_to_influxdb(data):
         raise ValueError(
             "Timestamp must be a string in the format YYYY-MM-DDTHH:MM:SSZ")
 
-    if not isinstance(data["temperature"], (int, float)):
+    temperature = _get_numeric_value(data, "temperature")
+    water_temperature = _get_numeric_value(data, "water_temperature", "watertemp", "water_temp")
+    humidity = _get_numeric_value(data, "humidity")
+    ceilometer = _get_numeric_value(data, "ceilometer", "cloud_base", "cloudheight", "cloud_height")
+    uv_index = _get_numeric_value(data, "uv_index", "uv", "uvi")
+    uv_irradiance = _get_numeric_value(
+        data, "uv_irradiance", "uv_radiation", "uv_power_density"
+    )
+
+    if temperature is None:
         raise ValueError("Temperature must be an integer or float")
-    if not isinstance(data["water_temperature"], (int, float)):
-        raise ValueError("Water temperature must be an integer or float")
-    if not isinstance(data["humidity"], (int, float)):
+    if humidity is None:
         raise ValueError("Humidity must be an integer or float")
 
     write_api = influx_client.write_api(
@@ -47,13 +68,28 @@ def save_station_data_to_influxdb(data):
 
     # Create a point
     point = Point("weather_station") \
-        .field("temperature", float(data["temperature"])) \
-        .field("water_temperature", float(data["water_temperature"])) \
-        .field("humidity", float(data["humidity"])) \
+        .field("temperature", float(temperature)) \
+        .field("humidity", float(humidity)) \
         .time(data["timestamp"].isoformat())
+
+    if water_temperature is not None:
+        point.field("water_temperature", float(water_temperature))
+    if ceilometer is not None:
+        point.field("ceilometer", float(ceilometer))
+    if uv_index is not None:
+        point.field("uv_index", float(uv_index))
+    if uv_irradiance is not None:
+        point.field("uv_irradiance", float(uv_irradiance))
 
     # Write the point to InfluxDB
     write_api.write(bucket=BUCKET, org=INFLUXDB_ORG, record=point)
+    if uv_index is not None or uv_irradiance is not None:
+        uv_point = Point(UV_MEASUREMENT).time(data["timestamp"].isoformat())
+        if uv_index is not None:
+            uv_point.field("uv_index", float(uv_index))
+        if uv_irradiance is not None:
+            uv_point.field("uv_irradiance", float(uv_irradiance))
+        write_api.write(bucket=BUCKET, org=INFLUXDB_ORG, record=uv_point)
     write_api.close()
 
 
@@ -86,5 +122,11 @@ def get_station_data_from_influxdb(start: datetime, stop: datetime):
             )
 
     df = pd.DataFrame(data)
-    df = df.drop(columns=["result", "table"])
+
+    # Only drop columns if they exist and DataFrame is not empty
+    if not df.empty:
+        columns_to_drop = [col for col in ["result", "table"] if col in df.columns]
+        if columns_to_drop:
+            df = df.drop(columns=columns_to_drop)
+
     return df.to_dict(orient='records')

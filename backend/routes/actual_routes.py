@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from services.actual.DWD import DWD
 from services.actual.PegelOnline import PegelOnline
 from services.actual.OpenMeteo import OpenMeteo
-from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level, get_weekly_averaged_water_level, get_daily_averaged_water_level
+from services.influx import get_archive_water_level, get_monthly_averaged_water_level, get_yearly_averaged_water_level, get_weekly_averaged_water_level, get_daily_averaged_water_level, get_ceilometer_history, get_uv_history
 
 actual_bp = Blueprint('actual', __name__)
 
@@ -63,6 +63,48 @@ def actual_temperature_history():
         return jsonify([x for x in dwd.get_temperature(start, stop, frequency)])
     else:
         return jsonify({"error": "start, stop and frequency are required parameters"}), 400
+
+
+@actual_bp.route('/internal/dwd/weather-history', methods=['GET'])
+def internal_dwd_weather_history():
+    start = request.args.get('start')
+    stop = request.args.get('stop')
+    frequency = request.args.get('frequency', 'hourly')
+
+    if not start or not stop:
+        return jsonify({"error": "start and stop are required parameters"}), 400
+
+    try:
+        start_dt = datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
+        stop_dt = datetime.strptime(stop, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
+        frequency_enum = DWD.Frequency(frequency)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Use UTC timestamps and frequency hourly or 10_minutes"}), 400
+
+    try:
+        return jsonify(dwd.get_weather_history(start_dt, stop_dt, frequency_enum))
+    except Exception as e:
+        logging.exception("Error occurred while fetching DWD weather history:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
+
+
+@actual_bp.route('/internal/dwd/current', methods=['GET'])
+def internal_dwd_current():
+    try:
+        measurements = dwd.get_real_time_data()
+        allowed = {"temperature", "humidity"}
+        return jsonify([
+            {
+                "timestamp": measurement.date.isoformat(),
+                "field": measurement.name,
+                "value": float(measurement.value),
+            }
+            for measurement in measurements
+            if measurement.name in allowed
+        ])
+    except Exception as e:
+        logging.exception("Error occurred while fetching current DWD weather:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
 
 
 @actual_bp.route('/actual/archive', methods=['GET'])
@@ -191,3 +233,53 @@ def actual_water_level():
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "station_id is required"}), 400
+
+
+@actual_bp.route('/actual/ceilometer-history', methods=['GET'])
+def actual_ceilometer_history():
+    start = request.args.get('start')
+    stop = request.args.get('stop')
+
+    if not start or not stop:
+        return jsonify({"error": "start and stop are required parameters"}), 400
+
+    try:
+        start_dt = datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
+        stop_dt = datetime.strptime(stop, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
+    except ValueError:
+        return jsonify({"error": "start and stop must be in the format YYYY-MM-DDTHH:MM:SSZ"}), 400
+
+    if start_dt >= stop_dt:
+        return jsonify({"error": "start must be before stop"}), 400
+
+    try:
+        df = get_ceilometer_history(start_dt, stop_dt)
+        return jsonify(df.to_dict(orient='records'))
+    except Exception as e:
+        logging.exception("Error occurred while fetching ceilometer history:", exc_info=e)
+        return jsonify({"error": str(e)}), 500
+
+
+@actual_bp.route('/actual/uv-history', methods=['GET'])
+def actual_uv_history():
+    start = request.args.get('start')
+    stop = request.args.get('stop')
+
+    if not start or not stop:
+        return jsonify({"error": "start and stop are required parameters"}), 400
+
+    try:
+        start_dt = datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
+        stop_dt = datetime.strptime(stop, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
+    except ValueError:
+        return jsonify({"error": "start and stop must be in the format YYYY-MM-DDTHH:MM:SSZ"}), 400
+
+    if start_dt >= stop_dt:
+        return jsonify({"error": "start must be before stop"}), 400
+
+    try:
+        df = get_uv_history(start_dt, stop_dt)
+        return jsonify(df.to_dict(orient='records'))
+    except Exception as e:
+        logging.exception("Error occurred while fetching UV history:", exc_info=e)
+        return jsonify({"error": str(e)}), 500

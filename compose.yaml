@@ -11,6 +11,8 @@ services:
     env_file:
       - path: .env
         required: true
+    volumes:
+      - ${RASPI_BACKUP_HOST_DIR:-./raspi-backup}:/var/lib/fogcast/raspi-backup
     networks:
       - proxy-net
 
