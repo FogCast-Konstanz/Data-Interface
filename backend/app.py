@@ -5,6 +5,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from services.benchmarking.influx import get_latest_benchmark
+
+from services.system_status import get_cached_system_status
+
 from routes.models_routes import models_bp
 from routes.forecasts_routes import forecasts_bp
 from routes.weatherstation_routes import weatherstation_bp
@@ -40,6 +43,14 @@ def get_model_benchmarking():
         logging.exception(
             f"Error occurred while fetching model benchmarking scores:", exc_info=e)
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/system-status', methods=['GET'])
+def system_status():
+    response = jsonify(get_cached_system_status())
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
 
 
 @app.route('/health-check', methods=['GET'])
